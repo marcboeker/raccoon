@@ -1,0 +1,10 @@
+---
+source_directory:   public/js
+build_directory:    public/js
+builds:
+  min:
+    shrink_vars:    true
+    private:        true
+packages:
+  tracker:
+    - tracker

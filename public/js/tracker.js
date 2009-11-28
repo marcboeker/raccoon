@@ -1,43 +1,101 @@
-var Tracker = function(base_url) {
-	var url = base_url;
-	
-	var track = function (channel, data) {
-		if (typeof(XMLHttpRequest)  === "undefined") {
-		  XMLHttpRequest = function() {
-		    try { return new ActiveXObject("Msxml2.XMLHTTP.6.0"); }
-		      catch(e) {}
-		    try { return new ActiveXObject("Msxml2.XMLHTTP.3.0"); }
-		      catch(e) {}
-		    try { return new ActiveXObject("Msxml2.XMLHTTP"); }
-		      catch(e) {}
-		    try { return new ActiveXObject("Microsoft.XMLHTTP"); }
-		      catch(e) {}
-		    throw new Error("This browser does not support XMLHttpRequest.");
-		  };
-		}
+var Tracker = function() {
+	var url = undefined;
+	var messages = [];
 
-		if (url == undefined) {
-			url = 'http://127.0.0.1:1337/hub';
+	/**
+	 * Send queued messages, and deactivate further message queuing.
+	 */
+	var init = function() {
+		for (var i = 0; i < messages.length; ++i) {
+			var msg = messages.shift();
+			sendMessage(msg[0], msg[1]);
+		}
+		
+		messages = null;
+	};
+
+	/**
+	 * Create a new iframe element as form submit target.
+	 */	
+	var createIframe = function() {
+		var iframe = document.createElement('iframe');
+		iframe.name = 'hidden-frame';
+		iframe.id = 'hidden-frame';
+		iframe.style.position = 'absolute';
+		iframe.style.top = '-1000px';
+		iframe.style.left = '-1000px';
+
+		document.body.appendChild(iframe);
+	};
+	
+	/**
+	 * Remove iframe form DOM.
+	 */		
+	var removeIframe = function() {
+		var frame = document.getElementById('hidden-frame');
+		frame.parentNode.removeChild(frame);
+	};
+	
+	/**
+	 * Decide weather to queue message or to push message directly.
+	 */	
+	var track = function (channel, data) {
+		if (messages === null) {
+			sendMessage(channel, data);
+		} else {
+			messages.push([channel, data]);
+		}
+	};
+		
+	/**
+	 * Create a new form and submit it.
+	 */	
+	var sendMessage = function(channel, data) {
+		createIframe();
+		
+		var url = null;
+		
+		if (Tracker.url === undefined) {
+			url = 'http://127.0.0.1/pub?channel=' + channel;
+		} else {
+			url = Tracker.url + '?channel=' + channel;
 		}
 
 		data.channel = channel;
+		
+		var form = document.createElement('form');
+		form.id = 'hidden-form';
+		form.action = url;
+		form.method = 'post';
+		form.enctype = 'text/plain';
+		form.target = 'hidden-frame';
 
-		var xhr = new XMLHttpRequest();
-		xhr.open('POST', url, false);
-		xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-		xhr.send(
-			'message=[{"channel":"' + channel + '","data":' 
-			+ JSON.stringify(data) + ',"clientId":""}]'
-		);
+		document.body.appendChild(form);
+		var formElm = document.getElementById('hidden-form');
+		
+		var input = document.createElement('input');
+		input.type = 'text';
+		input.name = '';
+		input.value = escape(JSON.stringify(data));
+		
+		formElm.appendChild(input);
+			
+		formElm.submit();
+		form = document.getElementById('hidden-form');
+		form.parentNode.removeChild(form);
+		
+		removeIframe();
 	};
 	
-	var toJson = function() {
-		
-	};
-
 	return {
-		track: track
+		init: init,
+		track: track,
+		url: ''
 	};
+}();
+
+window.onload = function() {
+	Tracker.init();
 };
 
 /*
@@ -101,11 +159,6 @@ if (!this.JSON) {
 
     function quote(string) {
 
-// If the string contains no control characters, no quote characters, and no
-// backslash characters, then we can safely slap some quotes around it.
-// Otherwise we must also replace the offending characters with safe escape
-// sequences.
-
         escapable.lastIndex = 0;
         return escapable.test(string) ?
             '"' + string.replace(escapable, function (a) {
@@ -119,7 +172,6 @@ if (!this.JSON) {
 
     function str(key, holder) {
 
-// Produce a string from holder[key].
 
         var i,          // The loop counter.
             k,          // The member key.

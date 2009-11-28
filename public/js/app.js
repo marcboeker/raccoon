@@ -6,52 +6,32 @@ $(document).ready(function() {
 });
 
 var App = function() {
-	var hub = null;
+	var connections = {};
 	var channels = {};
 	var logSize = 10;
 	
-	var connect = function() {
-		$('#connect').fadeOut(function() {
-			$('#disconnect').fadeIn(function () {
-				$('#disconnect').click(disconnect);
-			});
+	var connect = function(channel) {
+		channels[channel] = $.ajax({
+			url: '/sub',
+			data: {channel: channel},
+			type: 'GET',
+			dataType: 'text',
+			success: function(data) {
+				if (channels[channel] !== undefined) {
+					connect(channel);
+					message(data);
+				}
+			}
 		});
-
-		hub = new Faye.Client('/hub');
-		hub.connect(function() {
-			$('#subscribe').removeAttr('disabled');
-		});
-	};
-
-	var disconnect = function() {
-		$('#disconnect').fadeOut(function() {
-			$('#connect').fadeIn(function () {
-				$('#connect').click(connect);
-			});
-		});
-
-		hub.disconnect();
-
-		$('#subscribe').attr('disabled', 'disabled');
-		$('#channels .channel').remove();
-		channels = {};
-	};
-	
-	var channelName = function(channel) {
-		return channel.replace(/\//, '.')
 	};
 	
 	var subscribe = function() {
 		var channel = $('#channel').val();
-		var channel_str = channelName(channel);
-		
-		if (channels[channel_str] !== undefined) {
+
+		if (channels[channel] !== undefined) {
 			return;
 		}		
-
-		hub.subscribe(channel, message);
-		channels[channel_str] = true;
-
+		
 		if ($('#channels-container').css('display') == 'none') {
 			$('#channels-container').fadeIn();
 		}
@@ -62,21 +42,30 @@ var App = function() {
 			unsubscribe(channel);
 			$(new_channel).remove();
 	
-			delete channels[channel_str];
-	
 			if ($('#channels-container button').length == 0) {
 				$('#channels-container').fadeOut();
 			}
 		});
 		
 		$('#channels').append(new_channel);
+		connect(channel);
 	};
 	
 	var unsubscribe = function(channel) {
-		hub.unsubscribe(channel);
+		if (channels[channel] !== undefined) {
+			channels[channel].abort();
+			delete channels[channel];
+		}
 	};
 	
 	var message = function(message) {
+		
+		if (message.indexOf('=') == 0) {
+			message = message.replace('=', '');
+			message = unescape(message);
+		}
+		
+		message = $.evalJSON(message);
 		var channel = message.channel;
 		delete message.channel;
 		
@@ -110,10 +99,6 @@ var App = function() {
 		$('#log div:gt(' + ls + ')').remove();
 	};
 	
-	var publish = function(channel, msg) {
-		hub.publish(channel, msg);
-	};
-	
 	var changeLogSize = function() {
 		logSize = $('#logsize').val();
 		trimLog();
@@ -125,16 +110,13 @@ var App = function() {
 				$(obj).remove();
 			});
 		});
-		
 	};
 	
 	return {
 		connect: connect,
-		disconnect: disconnect,		
 		subscribe: subscribe,
 		clearLog: clearLog,
-		publish: publish,
-		publish: publish,
+		channels: channels,
 		changeLogSize: changeLogSize
 	};
 }();

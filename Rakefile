@@ -1,29 +1,19 @@
-require 'rubygems'
-require 'rubygems/specification'
-require 'fileutils'
 require 'rake'
-require 'rake/testtask'
-require 'rake/gempackagetask'
-require 'rbconfig'
-include Config
 
-gem_command = "gem"
-gem_command = "gem1.9" if $0.match(/1\.9$/) # use gem1.9 if we used rake1.9
-
-namespace :gem do
-  desc "Install the gem locally"
-  
-  task :install do
-    sh <<EOS
-#{gem_command} build raccoon.gemspec && 
-sudo #{gem_command} install raccoon-*.gem &&
-    rm raccoon-*.gem
-EOS
+begin
+  require 'rubygems'
+  require 'jeweler'
+  Jeweler::Tasks.new do |s|
+    s.name = "raccoon"
+    s.rubyforge_project = "raccoon"
+    s.summary = "Live tracking of events, called in webapps"
+    s.email = "marc.boeker@onchestra.com"
+    s.homepage = "http://github.com/marcboeker/raccoon"
+    s.description = "Use raccoon to debug you application (via a Ruby/Python/PHP client) or embed a JavaScript into your webpage and see what the users are doing."
+    s.authors = ["Marc Boeker"]
+    s.files = FileList["[A-Z]*.*", "lib/**/*"]
+    s.add_dependency('jake')
   end
-end
-
-task :default => :list
-
-task :list do
-  system 'rake -T'
+rescue LoadError
+  puts "Jeweler not available. Install it with: sudo gem install technicalpickles-jeweler -s http://gems.github.com"
 end

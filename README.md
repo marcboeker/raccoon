@@ -1,7 +1,7 @@
 # About
 
-Raccoon is a small Ruby application to help remote debugging and live tracking
-of events. These events an be triggered from many languages. For example, you
+Raccoon is a small tool to help you with remote debugging and live tracking
+of events. These events can be triggered from many languages. For example, you
 can include a small JavaScript snippet in your online shop to monitor when
 users add items to their shopping cart.
 
@@ -12,15 +12,15 @@ webbrowser).
 
 # Examples
 
-To see live when users are adding items to their cart in your inline shop:
+To see live when users are adding items to their cart in your online shop:
 
 	<script src="/public/js/tracker.js" type="text/javascript"></script> 
 
 	<script type="text/javascript">
-		var x = Tracker('http://example.com:1337/hub');
+		Tracker.url = 'http://127.0.0.1/pub';
 	</script>
-	
-	<button type="button" onclick="x.track('/cart', {item: 'boots'});">
+		
+	<button type="button" onclick="Tracker.track('cart', {item: 'boots'});">
 		Add Boots to cart
 	</button>
 	
@@ -30,10 +30,8 @@ You want to know the exact value of a variable in some remote code:
 	require 'tracker'
 	require 'sinatra'
 
-	x = Tracker.new('http://example.com:1337/hub')
-
 	get '/' do
-		x.track('/debugging', params['num'])
+	 	Tracker.new('http://127.0.0.1/pub').track('444', params['num'])
 		'give me ' + params['num']
 	end
 
@@ -45,44 +43,41 @@ You want to know the exact value of a variable in some remote code:
 
 Raccoon need the following dependencies. They all can be resolved with github.
 
-- 	[Rack](http://github.com/chneukirchen/rack/ "Rack")
-- 	[Sinatra](http://github.com/sinatra/sinatra "Sinatra")
-- 	[Faye](http://github.com/jcoglan/faye/ "Faye")
-- 	[Jake](http://github.com/tlrobinson/jake/ "Jake")
-
-	sudo gem install rack sinatra faye jake
+- 	[NGiNX HTTP push module](http://github.com/slact/nginx_http_push_module 
+"NGiNX HTTP push module")
 	
-## Get Faye up and running
+To install the NGiNX HTTP push module, please compile NGiNX with the following
+options:
 
-The only thing you need to do is to minify the Faye JavaScript. Please refer
-to the [Faye installation instructions](http://github.com/jcoglan/faye/
- "Faye") for more information.
-
-	cd <path-to-faye-gem>
-	sudo jake -f
-	
+	./configure --add-module=/path/to/push-module
+	make
+	sudo make install
+		
 ## Raccoonify it
 
 	git clone git://github.com/marcboeker/raccoon.git
-	cd raccoon
-	rackup config.ru
+
+Now edit the nginx.conf at raccoon/conf/nginx.conf to point to your
+raccoon working dir.
+
+	location / {
+		root /path/to/raccoon/public/;
+		index index.html;
+	}
+	
+Start nginx with the config file:
+
+	/usr/sbin/nginx -c /path/to/raccoon/conf/nginx.conf
 
 Now you're able to access the Raccoon-Console in your browser at:
 
-	http://<your-server-ip>:1337/
+	http://<your-server-ip>/
 	
-# Troubleshooting
+Enter a random channel name like "banana" and press subscribe. The channel
+should appear in the channel bar. Now take another browser and open the
+following URL.
 
-**Raccoon does not show anything other than an empty console.**
-
-- 	Have you minified the Faye JavaScript?
-- 	Have you successfully connected and subscribed to a channel?
-	(Verify this in FireBug and make sure you don't get any failed
-	AJAX requests.)
-- 	Are both URLs equal. The Raccoon server URL and the URL you have
-	entered in your client? Don't miss the /hub at the end.
-
-**I don't see anything when i call the Raccoon URL in my browser.**
-
-- 	Do the ports in Raccoon and in your browsers URL bar match?
-- 	Does your server has a firewall (iptables) installed?
+	http://<your-server-ip>/tracktest.html
+	
+Enter the same channel identifier you have used before, type in your message
+and hit the submit button. The message should appear in the raccoon console.
